@@ -1,0 +1,125 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  COMMUNITY
+  RESPONDER
+  ADMIN
+}
+enum IncidentStatus {
+  NEW
+  ACKNOWLEDGED
+  IN_PROGRESS
+  RESOLVED
+}
+enum VerificationStatus {
+  UNVERIFIED
+  VERIFIED
+  DISPUTED
+}
+enum EmergencyCategory {
+  MEDICAL
+  FIRE
+  FLOOD
+  ROAD_HAZARD
+  SECURITY
+  EARTHQUAKE
+  OTHER
+}
+
+model User {
+  id           String     @id @default(uuid()) @db.Uuid
+  email        String     @unique
+  displayName  String
+  passwordHash String
+  role         UserRole   @default(COMMUNITY)
+  active       Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  incidents    Incident[]
+  disputes     IncidentDispute[]
+  media        IncidentMedia[]
+  syncEvents   SyncEvent[]
+  coordinationRecords CoordinationRecord[]
+}
+
+model Incident {
+  id                 String             @id @default(uuid()) @db.Uuid
+  clientEventId      String             @unique
+  messageId          String
+  reporterId         String             @db.Uuid
+  reporter           User               @relation(fields: [reporterId], references: [id], onDelete: Restrict)
+  category           EmergencyCategory
+  severity           Int                @default(2)
+  description        String             @db.VarChar(3000)
+  latitude           Float?
+  longitude          Float?
+  locationConsent    Boolean            @default(false)
+  affectedCount      Int?
+  assistance         String?            @db.VarChar(1000)
+  mediaId            String?            @unique @db.Uuid
+  status             IncidentStatus     @default(NEW)
+  verification       VerificationStatus @default(UNVERIFIED)
+  version            Int                @default(1)
+  reportedAt         DateTime
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  disputes           IncidentDispute[]
+  media              IncidentMedia?    @relation(fields: [mediaId], references: [id], onDelete: SetNull)
+  @@index([status, reportedAt])
+  @@index([latitude, longitude])
+  @@index([reporterId, reportedAt])
+}
+
+model SyncEvent {
+  eventId    String   @id
+  messageId  String
+  eventType  String
+  userId     String   @db.Uuid
+  user       User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  receivedAt DateTime @default(now())
+  @@index([userId, receivedAt])
+}
+
+model IncidentDispute {
+  id         String   @id @default(uuid()) @db.Uuid
+  incidentId String   @db.Uuid
+  incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  userId     String   @db.Uuid
+  user       User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  reason     String   @db.VarChar(500)
+  createdAt  DateTime @default(now())
+  @@unique([incidentId, userId])
+}
+
+model IncidentMedia {
+  id          String   @id @default(uuid()) @db.Uuid
+  ownerId     String   @db.Uuid
+  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  storageName String   @unique
+  clientUploadId String? @unique
+  mimeType    String
+  byteSize    Int
+  createdAt   DateTime @default(now())
+  incident    Incident?
+  @@index([ownerId])
+}
+
+
+model CoordinationRecord {
+  eventId   String   @id
+  messageId String
+  recordType String
+  payload   Json
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+  @@index([recordType, createdAt])
+  @@index([userId, createdAt])
+}

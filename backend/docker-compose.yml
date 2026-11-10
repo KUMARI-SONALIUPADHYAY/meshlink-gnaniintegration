@@ -1,0 +1,41 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: meshlink
+      POSTGRES_USER: meshlink
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in backend/.env}
+    volumes:
+      - meshlink_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U meshlink -d meshlink"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      DATABASE_URL: postgresql://meshlink:${POSTGRES_PASSWORD}@db:5432/meshlink?schema=public
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in backend/.env}
+      JWT_ISSUER: meshlink-cloud
+      JWT_AUDIENCE: meshlink-android
+      TRUST_PROXY: "1"
+      UPLOAD_DIR: /app/uploads
+      MAX_UPLOAD_BYTES: 5242880
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+    volumes:
+      - meshlink_uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8080:8080"
+
+volumes:
+  meshlink_pgdata:
+  meshlink_uploads:

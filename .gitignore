@@ -1,0 +1,31 @@
+
+# Android Studio
+.idea/
+*.iml
+local.properties
+
+# Gradle
+.gradle/
+build/
+**/build/
+
+# Backend dependencies
+node_modules/
+backend/node_modules/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# Generated files
+.DS_Store
+Thumbs.db
+
+
+kotlinc-errors.txt
+
+kotlinc-errors.txt
